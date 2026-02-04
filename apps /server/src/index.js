@@ -1,47 +1,48 @@
 require('dotenv').config();
 
 const http = require('http');
+const express = require('express');
 const SocketService = require('./services/socket');
 
 console.log('🔥 ENTRY FILE:', __filename);
 console.log('🔥 REDIS_URL:', process.env.REDIS_URL ? 'SET' : 'MISSING');
 
-/**
- * Initialize and start the HTTP server with WebSocket support
- */
 async function init() {
   try {
-    // Validate environment
     if (!process.env.REDIS_URL) {
       throw new Error('REDIS_URL is missing');
     }
 
+    const app = express();
     const socketService = new SocketService();
-    const server = http.createServer();
+    const server = http.createServer(app);
     const PORT = process.env.PORT || 8000;
 
-    // Attach Socket.IO
+    app.use(express.json({ limit: '50mb' }));
+    app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+    app.get('/health', (req, res) => {
+      res.json({ status: 'ok' });
+    });
+
     socketService.io.attach(server);
     socketService.initListeners();
 
-    // Start server
     server.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
       console.log('✅ WebSockets active');
-      console.log('✅ Redis Pub/Sub enabled');
-      console.log('✅ Redis short-term cache (last 50 messages)');
+      console.log('✅ Redis enabled');
     });
 
-    // Graceful shutdown
     process.on('SIGINT', () => {
-      console.log('🛑 Shutting down gracefully...');
+      console.log('🛑 Shutting down...');
       server.close(() => {
         console.log('✅ Server closed');
         process.exit(0);
       });
     });
   } catch (err) {
-    console.error('❌ Fatal startup error:', err.message);
+    console.error('❌ Fatal error:', err.message);
     process.exit(1);
   }
 }
