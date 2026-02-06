@@ -11,12 +11,14 @@ export const useSocket = () => {
   return ctx;
 };
 
-// Generate or retrieve persistent userId
+// Generate or retrieve persistent userId (client-only)
 const getOrCreateUserId = () => {
-  let userId = localStorage.getItem('userId');
+  if (typeof window === 'undefined') return null;
+
+  let userId = window.localStorage.getItem('userId');
   if (!userId) {
     userId = `user_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    localStorage.setItem('userId', userId);
+    window.localStorage.setItem('userId', userId);
   }
   return userId;
 };
@@ -29,7 +31,7 @@ export const SocketProvider = ({ children }) => {
   const [username, setUsername] = useState(null);
   const [socketId, setSocketId] = useState(null);
   const [roomUsers, setRoomUsers] = useState([]);
-  const [userId] = useState(() => getOrCreateUserId());
+  const [userId, setUserId] = useState(() => getOrCreateUserId());
 
   const seen = useRef(new Set());
   const prevConnectedRef = useRef(false);
@@ -100,6 +102,12 @@ export const SocketProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
+    if (!userId) {
+      setUserId(getOrCreateUserId());
+    }
+  }, [userId]);
+
+  useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8000';
     const s = io(url, { transports: ['websocket'] });
 
@@ -117,12 +125,16 @@ export const SocketProvider = ({ children }) => {
 
     s.on('room_created', (data) => {
       setRoomId(data.roomId);
-      localStorage.setItem('lastRoomId', data.roomId);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('lastRoomId', data.roomId);
+      }
     });
 
     s.on('room_joined', (data) => {
       setRoomId(data.roomId);
-      localStorage.setItem('lastRoomId', data.roomId);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('lastRoomId', data.roomId);
+      }
     });
 
     s.on('user_joined', () => {
@@ -202,132 +214,3 @@ export const SocketProvider = ({ children }) => {
     </SocketContext.Provider>
   );
 };
-
-// 'use client';
-
-// import React, { useCallback, useContext, useEffect, useState } from 'react';
-// import { io } from 'socket.io-client';
-
-// /**
-//  * Socket context for managing WebSocket connections
-//  */
-// const SocketContext = React.createContext(null);
-
-// /**
-//  * Custom hook to access socket context
-//  */
-// export const useSocket = () => {
-//   const state = useContext(SocketContext);
-//   if (!state) {
-//     throw new Error('useSocket must be used within SocketProvider');
-//   }
-//   return state;
-// };
-
-// /**
-//  * Socket provider component - wraps app with real-time communication
-//  */
-// export const SocketProvider = ({ children }) => {
-//   const [socket, setSocket] = useState(null);
-//   const [messages, setMessages] = useState([]);
-//   const [isConnected, setIsConnected] = useState(false);
-//   const [isTyping, setIsTyping] = useState(false);
-
-//   /**
-//    * Send message through WebSocket
-//    */
-//   const sendMessage = useCallback(
-//     (msg) => {
-//       if (!msg.trim()) return;
-
-//       console.log('[SocketProvider] Sending message:', msg);
-//       if (socket && socket.connected) {
-//         socket.emit('event:message', { message: msg });
-//       } else {
-//         console.error('[SocketProvider] Socket not connected');
-//       }
-//     },
-//     [socket]
-//   );
-
-//   /**
-//    * Handle incoming messages from server
-//    */
-//   const onMessageReceived = useCallback((data) => {
-//     try {
-//       const parsed = data;
-//       //const parsed = JSON.parse(data);
-//       console.log('[SocketProvider] Message received:', parsed);
-//       setMessages((prev) => [
-//         ...prev,
-//         {
-//           id: Date.now(),
-//           text: parsed.message,
-//           timestamp: parsed.timestamp || Date.now(),
-//           from: parsed.from || 'other',
-//         },
-//       ]);
-//     } catch (error) {
-//       console.error('[SocketProvider] Error parsing message:', error);
-//     }
-//   }, []);
-
-//   /**
-//    * Initialize Socket.IO connection
-//    */
-//   useEffect(() => {
-//     console.log('[SocketProvider] Initializing socket connection...');
-
-//     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8000';
-//     const newSocket = io(socketUrl, {
-//       reconnection: true,
-//       reconnectionDelay: 1000,
-//       reconnectionDelayMax: 5000,
-//       reconnectionAttempts: 5,
-//     });
-
-//     // Connection established
-//     newSocket.on('connect', () => {
-//       console.log('[SocketProvider] Connected to server:', newSocket.id);
-//       setIsConnected(true);
-//     });
-
-//     // Receive messages
-//     newSocket.on('message', onMessageReceived);
-
-//     // Disconnected
-//     newSocket.on('disconnect', (reason) => {
-//       console.log('[SocketProvider] Disconnected:', reason);
-//       setIsConnected(false);
-//     });
-
-//     // Connection errors
-//     newSocket.on('error', (error) => {
-//       console.error('[SocketProvider] Socket error:', error);
-//     });
-
-//     setSocket(newSocket);
-
-//     // Cleanup on unmount
-//     return () => {
-//       console.log('[SocketProvider] Cleaning up socket connection...');
-//       newSocket.off('message', onMessageReceived);
-//       newSocket.disconnect();
-//     };
-//   }, [onMessageReceived]);
-
-//   return (
-//     <SocketContext.Provider
-//       value={{
-//         socket,
-//         sendMessage,
-//         messages,
-//         isConnected,
-//         isTyping,
-//         setIsTyping,
-//       }}
-//     >
-//       {children}
-//     </SocketContext.Provider>
-//   );
-// };
