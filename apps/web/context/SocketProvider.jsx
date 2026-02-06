@@ -75,18 +75,24 @@ export const SocketProvider = ({ children }) => {
   const onMessageReceived = useCallback((data) => {
     if (!data || !data.timestamp) return;
 
-    const id = `${data.userId || data.from}-${data.timestamp}`;
+    const keyUser = data.userId || data.from || 'unknown';
+    const id = `${keyUser}-${data.timestamp}-${data.type || 'text'}`;
     if (seen.current.has(id)) return;
     seen.current.add(id);
+
+    const type = data.type || 'text';
 
     setMessages((prev) => [
       ...prev,
       {
         id,
-        type: 'text',
-        text: data.message,
+        type,
+        text: type === 'text' ? data.message : '',
+        fileUrl: type === 'file' ? data.fileUrl : undefined,
+        fileType: type === 'file' ? data.fileType : undefined,
+        filename: type === 'file' ? data.filename : undefined,
         timestamp: data.timestamp,
-        from: data.userId || data.from,
+        from: keyUser,
         userId: data.userId,
         username: data.username || 'Unknown',
       },

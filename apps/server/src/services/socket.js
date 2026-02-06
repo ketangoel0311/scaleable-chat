@@ -56,6 +56,20 @@ class SocketService {
     });
   }
 
+  async publishToRoom(roomId, payload) {
+    if (!roomId) return;
+
+    const safePayload = {
+      ...payload,
+      roomId,
+      timestamp: payload?.timestamp || Date.now(),
+    };
+
+    await store.lpush(getRoomMessagesKey(roomId), JSON.stringify(safePayload));
+    await store.ltrim(getRoomMessagesKey(roomId), 0, 49);
+    await pub.publish(getRoomChannel(roomId), JSON.stringify(safePayload));
+  }
+
   initListeners() {
     const io = this._io;
     console.log('[SocketService] Initializing listeners…');
@@ -158,11 +172,10 @@ class SocketService {
           userId: currentUserId,
           username: currentUsername,
           timestamp: Date.now(),
+          roomId: currentRoomId,
         };
 
-        await store.lpush(getRoomMessagesKey(currentRoomId), JSON.stringify(payload));
-        await store.ltrim(getRoomMessagesKey(currentRoomId), 0, 49);
-        await pub.publish(getRoomChannel(currentRoomId), JSON.stringify(payload));
+        await this.publishToRoom(currentRoomId, payload);
       });
 
       /* ---------- DISCONNECT ---------- */

@@ -1,6 +1,10 @@
 export const ChatMessage = ({ message, isSent, highlight }) => {
   const displayUsername = message.username || 'Unknown';
 
+  const isFile = message.type === 'file';
+  const isImage = isFile && message.fileType && message.fileType.startsWith('image/');
+  const isPdf = isFile && message.fileType === 'application/pdf';
+
   return (
     <div className={`flex ${isSent ? 'justify-end' : 'justify-start'} items-end gap-2`}>
       {!isSent && (
@@ -21,14 +25,51 @@ export const ChatMessage = ({ message, isSent, highlight }) => {
             ${highlight ? 'ring-2 ring-emerald-400 scale-105' : ''}
           `}
         >
-          <p className="text-sm leading-relaxed break-words">{message.text}</p>
+          {isFile ? (
+            <div className="space-y-2">
+              {isImage && message.fileUrl && (
+                <a
+                  href={message.fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  download={message.filename || true}
+                  className="inline-block"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={message.fileUrl}
+                    alt={message.filename || 'Image'}
+                    className="max-w-xs max-h-64 rounded-lg object-cover border border-white/20 cursor-pointer"
+                  />
+                </a>
+              )}
+              {isPdf && message.fileUrl && (
+                <a
+                  href={message.fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-sm underline decoration-emerald-300 hover:decoration-emerald-100"
+                >
+                  <span className="text-lg">📄</span>
+                  <span>{message.filename || 'Download PDF'}</span>
+                </a>
+              )}
+              {!isImage && !isPdf && message.filename && (
+                <div className="text-sm break-all">{message.filename}</div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm leading-relaxed break-words">{message.text}</p>
+          )}
 
-          <div className={`mt-1 text-xs opacity-70 ${isSent ? 'text-right' : 'text-left'}`}>
-            {new Date(message.timestamp).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </div>
+          {message.timestamp && (
+            <div className={`mt-1 text-xs opacity-70 ${isSent ? 'text-right' : 'text-left'}`}>
+              {new Date(message.timestamp).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </div>
+          )}
         </div>
       </div>
       {isSent && (
