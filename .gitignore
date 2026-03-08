@@ -14,6 +14,9 @@ build/
 # Turbo
 .turbo/
 
+# Uploads (stored on disk)
+apps/server/uploads/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
